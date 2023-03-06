@@ -16,4 +16,12 @@ game.subscribeToEvent("playerChats", (data, context) => {
     "send a message",
     data.playerChats.contents
   );
+
+  const chatRecipient = data.playerChats.recipient; // 個人間のメッセージ, nearby, Everyoneのいずれか
+  const mapId = context.player.map;
+
+  // 参考:http://gather-game-client-docs.s3-website-us-west-2.amazonaws.com/classes/Game.html#chat
+  game.chat(chatRecipient, Object.keys(game.players), mapId, {
+    contents: "私はchatgptです",
+  });
 });
