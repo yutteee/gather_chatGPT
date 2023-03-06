@@ -9,3 +9,11 @@ global.WebSocket = require("isomorphic-ws");
 const game = new Game(process.env.SPACE_ID, () => Promise.resolve({ apiKey: process.env.API_KEY }));
 game.connect();
 game.subscribeToConnection((connected) => console.log("connected?", connected));
+
+game.subscribeToEvent("playerChats", (data, context) => {
+  console.log(
+    context?.player?.name ?? context.playerId,
+    "send a message",
+    data.playerChats.contents
+  );
+});
