@@ -11,6 +11,9 @@ game.connect();
 game.subscribeToConnection((connected) => console.log("connected?", connected));
 
 game.subscribeToEvent("playerChats", (data, context) => {
+  // chatGPTの応答にイベントが走らないようにする
+  if (data.playerChats.senderId === process.env.BOT_ID) return;
+
   console.log(
     context?.player?.name ?? context.playerId,
     "send a message",
@@ -21,7 +24,16 @@ game.subscribeToEvent("playerChats", (data, context) => {
   const mapId = context.player.map;
 
   // 参考:http://gather-game-client-docs.s3-website-us-west-2.amazonaws.com/classes/Game.html#chat
-  game.chat(chatRecipient, Object.keys(game.players), mapId, {
-    contents: "私はchatgptです",
-  });
+  const replyMessage = function (recipient) {
+    game.chat(recipient, Object.keys(game.players), mapId, {
+      contents: "私はchatgptです",
+    });
+  };
+
+  // どのメッセージの形式にも対応
+  if (data.playerChats.messageType === "DM") {
+    const recipient = data.playerChats.senderId;
+    return replyMessage(recipient);
+  }
+  return replyMessage(chatRecipient);
 });
