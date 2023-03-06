@@ -10,46 +10,39 @@ const configuration = new Configuration({
 });
 const openai = new OpenAIApi(configuration);
 
-const aaa = async function () {
+const replyFromChatGPT = async function (message) {
   const completion = await openai.createChatCompletion({
     model: "gpt-3.5-turbo",
-    messages: [{ role: "user", content: "こんにちは。わかったら返事をしろ" }],
+    messages: [{ role: "user", content: message }],
   });
-  console.log(completion.data.choices[0].message);
+  return completion.data.choices[0].message.content;
 };
-
-aaa();
 
 // gatherに接続する
 // 参考:https://gathertown.notion.site/Gather-Websocket-API-bf2d5d4526db412590c3579c36141063
-// const game = new Game(process.env.SPACE_ID, () => Promise.resolve({ apiKey: process.env.API_KEY }));
-// game.connect();
-// game.subscribeToConnection((connected) => console.log("connected?", connected));
+const game = new Game(process.env.SPACE_ID, () => Promise.resolve({ apiKey: process.env.API_KEY }));
+game.connect();
+game.subscribeToConnection((connected) => console.log("connected?", connected));
 
-// game.subscribeToEvent("playerChats", (data, context) => {
-//   // chatGPTの応答にイベントが走らないようにする
-//   if (data.playerChats.senderId === process.env.BOT_ID) return;
+game.subscribeToEvent("playerChats", (data, context) => {
+  // chatGPTの応答にイベントが走らないようにする
+  if (data.playerChats.senderId === process.env.BOT_ID) return;
 
-//   console.log(
-//     context?.player?.name ?? context.playerId,
-//     "send a message",
-//     data.playerChats.contents
-//   );
+  const receivedMessage = data.playerChats.contents;
+  const chatRecipient = data.playerChats.recipient; // 個人間のメッセージ, nearby, Everyoneのいずれか
+  const mapId = context.player.map;
 
-//   const chatRecipient = data.playerChats.recipient; // 個人間のメッセージ, nearby, Everyoneのいずれか
-//   const mapId = context.player.map;
+  // 参考:http://gather-game-client-docs.s3-website-us-west-2.amazonaws.com/classes/Game.html#chat
+  const replyMessage = async function (recipient, message) {
+    game.chat(recipient, Object.keys(game.players), mapId, {
+      contents: await replyFromChatGPT(message),
+    });
+  };
 
-//   // 参考:http://gather-game-client-docs.s3-website-us-west-2.amazonaws.com/classes/Game.html#chat
-//   const replyMessage = function (recipient) {
-//     game.chat(recipient, Object.keys(game.players), mapId, {
-//       contents: "私はchatgptです",
-//     });
-//   };
-
-//   // どのメッセージの形式にも対応
-//   if (data.playerChats.messageType === "DM") {
-//     const recipient = data.playerChats.senderId;
-//     return replyMessage(recipient);
-//   }
-//   return replyMessage(chatRecipient);
-// });
+  // どのメッセージの形式にも対応
+  if (data.playerChats.messageType === "DM") {
+    const recipient = data.playerChats.senderId;
+    return replyMessage(recipient, receivedMessage);
+  }
+  return replyMessage(chatRecipient, receivedMessage);
+});
