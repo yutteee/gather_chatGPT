@@ -3,6 +3,9 @@ const { Game } = require("@gathertown/gather-game-client");
 global.WebSocket = require("isomorphic-ws");
 const { Configuration, OpenAIApi } = require("openai");
 
+BOT_NAME = "gather_chatGPT";
+let isReplying = false;
+
 // chatGPTの設定
 // 参考：https://platform.openai.com/docs/api-reference/chat/create?lang=node.js
 const configuration = new Configuration({
@@ -11,11 +14,11 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 
 const replyFromChatGPT = async function (message) {
+  isReplying = true;
   const completion = await openai.createChatCompletion({
     model: "gpt-3.5-turbo",
     messages: [{ role: "user", content: message }],
   });
-  console.log(completion.data.choices[0].message.content);
   return completion.data.choices[0].message.content;
 };
 
@@ -25,13 +28,12 @@ const game = new Game(process.env.SPACE_ID, () => Promise.resolve({ apiKey: proc
 game.connect();
 game.subscribeToConnection((connected) => console.log("connected?", connected));
 
-BOT_NAME = "gather_chatGPT";
-
 game.subscribeToEvent("playerChats", (data, context) => {
   // chatGPTの応答に対して、イベントが走らないようにする
   if (data.playerChats.senderName === BOT_NAME) return;
   // roomでのメッセージに対して返答しないようにする
   if (data.playerChats.recipient === "GLOBAL_CHAT") return;
+  if (isReplying) return console.log("chatgptが返信を考えてるよ!");
 
   const receivedMessage = data.playerChats.contents;
   const chatRecipient = data.playerChats.recipient; // 個人間のメッセージ, nearby, Everyoneのいずれか
@@ -42,6 +44,7 @@ game.subscribeToEvent("playerChats", (data, context) => {
     game.chat(recipient, Object.keys(game.players), mapId, {
       contents: await replyFromChatGPT(message),
     });
+    isReplying = false;
   };
 
   // どのメッセージの形式にも対応
