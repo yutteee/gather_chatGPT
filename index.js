@@ -39,12 +39,15 @@ game.subscribeToEvent("playerChats", (data, context) => {
   const chatRecipient = data.playerChats.recipient; // 個人間のメッセージ, nearby, Everyoneのいずれか
   const mapId = context.player.map;
 
+  game.move(4, false); // 応答生成中はダンスをする
+
   // 参考:http://gather-game-client-docs.s3-website-us-west-2.amazonaws.com/classes/Game.html#chat
   const replyMessage = async function (recipient, message) {
     game.chat(recipient, Object.keys(game.players), mapId, {
       contents: await replyFromChatGPT(message),
     });
     isReplying = false;
+    game.move(3, false); //ダンスをストップ
   };
 
   // どのメッセージの形式にも対応
