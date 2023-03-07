@@ -15,11 +15,20 @@ const openai = new OpenAIApi(configuration);
 
 const replyFromChatGPT = async function (message) {
   isReplying = true;
-  const completion = await openai.createChatCompletion({
-    model: "gpt-3.5-turbo",
-    messages: [{ role: "user", content: message }],
-  });
-  return completion.data.choices[0].message.content;
+  const reply = await openai
+    .createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: message }],
+    })
+    .then((res) => {
+      console.log(res.data.choices[0].message.content);
+      return res.data.choices[0].message.content;
+    })
+    .catch((err) => {
+      console.log(err);
+      return "chatGPTの調子が悪いみたい...";
+    });
+  return reply;
 };
 
 // gatherに接続する
@@ -32,15 +41,17 @@ game.subscribeToEvent("playerChats", (data, context) => {
   // chatGPTの応答に対して、イベントが走らないようにする
   if (data.playerChats.senderName === BOT_NAME) return;
   // roomでのメッセージに対して返答しないようにする
-  if (data.playerChats.recipient === "GLOBAL_CHAT") return;
+  if (data.playerChats.recipient === "ROOM_CHAT") return;
   if (isReplying) return console.log("chatgptが返信を考えてるよ!");
+  console.log(data);
 
   const receivedMessage = data.playerChats.contents;
-  const chatRecipient = data.playerChats.recipient; // 個人間のメッセージ, nearby, Everyoneのいずれか
+  const chatRecipient = data.playerChats.recipient;
   const mapId = context.player.map;
 
   game.move(4, false); // 応答生成中はダンスをする
 
+  // chatをgatherで返すための関数
   // 参考:http://gather-game-client-docs.s3-website-us-west-2.amazonaws.com/classes/Game.html#chat
   const replyMessage = async function (recipient, message) {
     game.chat(recipient, Object.keys(game.players), mapId, {
@@ -50,7 +61,7 @@ game.subscribeToEvent("playerChats", (data, context) => {
     game.move(3, false); //ダンスをストップ
   };
 
-  // どのメッセージの形式にも対応
+  // DM, nearbyに対応
   if (data.playerChats.messageType === "DM") {
     const recipient = data.playerChats.senderId;
     return replyMessage(recipient, receivedMessage);
