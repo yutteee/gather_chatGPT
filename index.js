@@ -65,12 +65,13 @@ const nearbyPlayersIds = function () {
 };
 
 game.subscribeToEvent("playerChats", (data, context) => {
+  console.log(data);
   // 呼び出しに返答しないようにする
   if (data.playerChats.contents === "[is ringing you]") return;
   // chatGPTの応答に対して、イベントが走らないようにする
   if (data.playerChats.senderName === BOT_NAME) return;
   // roomでのメッセージに対して返答しないようにする
-  if (data.playerChats.recipient === "ROOM_CHAT" || "GLOBAL_CHAT") return;
+  if (data.playerChats.recipient === "ROOM_CHAT") return;
   if (isReplying) return console.log("chatgptが返信を考えてるよ!");
 
   const receivedMessage = data.playerChats.contents;
@@ -81,9 +82,8 @@ game.subscribeToEvent("playerChats", (data, context) => {
 
   // chatをgatherで返すための関数
   // 参考:http://gather-game-client-docs.s3-website-us-west-2.amazonaws.com/classes/Game.html#chat
-  const replyMessage = async function (recipient, message) {
-    const nearbyPlayers = nearbyPlayersIds();
-    game.chat(recipient, nearbyPlayers, mapId, {
+  const replyMessage = async function (recipient, nearby, message) {
+    game.chat(recipient, nearby, mapId, {
       contents: await replyFromChatGPT(message),
     });
     isReplying = false;
@@ -93,7 +93,8 @@ game.subscribeToEvent("playerChats", (data, context) => {
   // DM, nearbyに対応
   if (data.playerChats.messageType === "DM") {
     const recipient = data.playerChats.senderId;
-    return replyMessage(recipient, receivedMessage);
+    return replyMessage(recipient, Object.keys(game.players), receivedMessage);
   }
-  return replyMessage(chatRecipient, receivedMessage);
+  const nearbyPlayers = nearbyPlayersIds();
+  return replyMessage(chatRecipient, nearbyPlayers, receivedMessage);
 });
