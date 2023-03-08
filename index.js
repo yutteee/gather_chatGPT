@@ -35,15 +35,43 @@ const replyFromChatGPT = async function (message) {
 // 参考:https://gathertown.notion.site/Gather-Websocket-API-bf2d5d4526db412590c3579c36141063
 const game = new Game(process.env.SPACE_ID, () => Promise.resolve({ apiKey: process.env.API_KEY }));
 game.connect();
-game.subscribeToConnection((connected) => console.log("connected?", connected));
+game.subscribeToConnection((connected) => {
+  console.log("connected?", connected);
+});
+
+// chatGPTくんの座標を取得する関数
+const searchBotCoordinate = function () {
+  const botPlayers = Object.values(game.players).filter((player) => player.name === BOT_NAME);
+  return botPlayers.map((player) => ({ x: player.x, y: player.y }));
+};
+
+const nearbyPlayersIds = function () {
+  const coordinate = searchBotCoordinate()[0];
+  const nearbyPlayers = game.filterPlayersInSpace((player) => {
+    return (
+      coordinate.x - 3 <= player.x &&
+      player.x <= coordinate.x + 3 &&
+      coordinate.y - 4 <= player.y &&
+      player.y <= coordinate.y + 2
+    );
+  });
+
+  const playerIdArray = Object.entries(game.players)
+    .filter(([key, value]) =>
+      nearbyPlayers.some((nearbyPlayer) => JSON.stringify(nearbyPlayer) === JSON.stringify(value))
+    )
+    .map(([key]) => key);
+  return playerIdArray;
+};
 
 game.subscribeToEvent("playerChats", (data, context) => {
+  // 呼び出しに返答しないようにする
+  if (data.playerChats.contents === "[is ringing you]") return;
   // chatGPTの応答に対して、イベントが走らないようにする
   if (data.playerChats.senderName === BOT_NAME) return;
   // roomでのメッセージに対して返答しないようにする
-  if (data.playerChats.recipient === "ROOM_CHAT") return;
+  if (data.playerChats.recipient === "ROOM_CHAT" || "GLOBAL_CHAT") return;
   if (isReplying) return console.log("chatgptが返信を考えてるよ!");
-  console.log(data);
 
   const receivedMessage = data.playerChats.contents;
   const chatRecipient = data.playerChats.recipient;
@@ -54,7 +82,8 @@ game.subscribeToEvent("playerChats", (data, context) => {
   // chatをgatherで返すための関数
   // 参考:http://gather-game-client-docs.s3-website-us-west-2.amazonaws.com/classes/Game.html#chat
   const replyMessage = async function (recipient, message) {
-    game.chat(recipient, Object.keys(game.players), mapId, {
+    const nearbyPlayers = nearbyPlayersIds();
+    game.chat(recipient, nearbyPlayers, mapId, {
       contents: await replyFromChatGPT(message),
     });
     isReplying = false;
