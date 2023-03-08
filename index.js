@@ -18,7 +18,13 @@ const replyFromChatGPT = async function (message) {
   const reply = await openai
     .createChatCompletion({
       model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: message }],
+      messages: [
+        {
+          role: "system",
+          content: "あなたはゆってぃーによって開発された対話型のbotとして設置されています。",
+        },
+        { role: "user", content: message },
+      ],
     })
     .then((res) => {
       console.log(res.data.choices[0].message.content);
@@ -37,9 +43,7 @@ const game = new Game(process.env.SPACE_ID, () => Promise.resolve({ apiKey: proc
 game.connect();
 const onConnected = (connected) => {
   console.log("Connected: ", connected);
-  // ファイル実行時にアバターを生成
-  // 参考：http://gather-game-client-docs.s3-website-us-west-2.amazonaws.com/classes/Game.html#enter
-  game.enter(process.env.SPACE_ID);
+  game.enter(process.env.SPACE_ID); // ファイル実行時にアバターを生成
 };
 game.subscribeToConnection(onConnected);
 
@@ -50,6 +54,7 @@ const searchBotCoordinate = function () {
 
 const nearbyPlayersIds = function () {
   const coordinate = searchBotCoordinate()[0];
+  // nearbyにいるplayerを判別するための処理。改善の余地あり。
   const nearbyPlayers = game.filterPlayersInSpace((player) => {
     return (
       coordinate.x - 3 <= player.x &&
@@ -70,12 +75,12 @@ const nearbyPlayersIds = function () {
 game.subscribeToEvent("playerChats", (data, context) => {
   // DM以外では、%を先頭につけていないと受け取らない
   if (data.playerChats.messageType !== "DM" && data.playerChats.contents.charAt(0) !== "%") return;
-  if (data.playerChats.senderName === BOT_NAME) return; // chatGPTの応答に対して、イベントが走るのを防ぐ
+  if (data.playerChats.senderName === BOT_NAME) return; // chatGPTの応答に対してイベントが走るのを防ぐ
   if (isReplying) return console.log("chatgptが返信を考えてるよ!");
 
   let receivedMessage = data.playerChats.contents;
   if (data.playerChats.messageType !== "DM") {
-    receivedMessage = receivedMessage.substring(1);
+    receivedMessage = receivedMessage.substring(1); // 先頭の%を削除
   }
   const chatRecipient = data.playerChats.recipient;
   const mapId = context.player.map;
@@ -83,9 +88,9 @@ game.subscribeToEvent("playerChats", (data, context) => {
   game.move(4, false); // 応答生成中はダンスをする
 
   // chatをgatherで返すための関数
-  // 参考:http://gather-game-client-docs.s3-website-us-west-2.amazonaws.com/classes/Game.html#chat
   const replyMessage = async function (recipient, nearby, message) {
     console.log(message);
+    // 参考:http://gather-game-client-docs.s3-website-us-west-2.amazonaws.com/classes/Game.html#chat
     game.chat(recipient, nearby, mapId, {
       contents: await replyFromChatGPT(message),
     });
@@ -93,7 +98,6 @@ game.subscribeToEvent("playerChats", (data, context) => {
     game.move(3, false); //ダンスをストップ
   };
 
-  // DM, nearbyに対応
   if (data.playerChats.messageType === "DM") {
     const recipient = data.playerChats.senderId;
     return replyMessage(recipient, Object.keys(game.players), receivedMessage);
