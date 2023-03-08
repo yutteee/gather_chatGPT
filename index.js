@@ -65,16 +65,13 @@ const nearbyPlayersIds = function () {
 };
 
 game.subscribeToEvent("playerChats", (data, context) => {
-  console.log(data);
-  // 呼び出しに返答しないようにする
-  if (data.playerChats.contents === "[is ringing you]") return;
+  // DM以外では、%を先頭につけていないと受け取らないようにした
+  if (data.playerChats.messageType !== "DM" && data.playerChats.contents.charAt(0) !== "%") return;
   // chatGPTの応答に対して、イベントが走らないようにする
   if (data.playerChats.senderName === BOT_NAME) return;
-  // roomでのメッセージに対して返答しないようにする
-  if (data.playerChats.recipient === "ROOM_CHAT") return;
   if (isReplying) return console.log("chatgptが返信を考えてるよ!");
 
-  const receivedMessage = data.playerChats.contents;
+  const receivedMessage = data.playerChats.contents.substring(1);
   const chatRecipient = data.playerChats.recipient;
   const mapId = context.player.map;
 
