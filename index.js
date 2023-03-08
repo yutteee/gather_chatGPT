@@ -73,7 +73,10 @@ game.subscribeToEvent("playerChats", (data, context) => {
   if (data.playerChats.senderName === BOT_NAME) return; // chatGPTの応答に対して、イベントが走るのを防ぐ
   if (isReplying) return console.log("chatgptが返信を考えてるよ!");
 
-  const receivedMessage = data.playerChats.contents.substring(1);
+  let receivedMessage = data.playerChats.contents;
+  if (data.playerChats.messageType !== "DM") {
+    receivedMessage = receivedMessage.substring(1);
+  }
   const chatRecipient = data.playerChats.recipient;
   const mapId = context.player.map;
 
