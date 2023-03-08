@@ -45,7 +45,7 @@ OPENAI_API_KEY=
   ​
 
   You can get it from the url of the space in the gather where you want to place the bot.
-  https://gather.town/app/{SPACE_ID} (\* **Please change the slash(/) to a backslash(\).**)
+  https://gather.town/app/{SPACE_ID} (\* **Please change the slash(/) to a backslash(\\).**)
 
 - OPENAI_API_KEY
 
